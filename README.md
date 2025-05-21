@@ -1,4 +1,4 @@
 
 # ENLACE A LA DOCUMENTACIÓN
 
-[DOCUMENTACIÓN](%20EDES-4.3.1-PFF.md)
+[DOCUMENTACIÓN](https://github.com/PabloFdez06/EDE_CodeSmell_PFF/blob/P4.3.2-PFF/PRO-4.3.2-PFF.md)

@@ -1,27 +1,12 @@
-# <p align="center">EDE_Linting_PFF</p>
+# <p align="center">EDE_CodeSmell_PFF</p>
 
 
-# INSTALACIÓN DETEKT
+# COMO ANALIZAR EL CÓDIGO
 
-1. Agrega Detekt al archivo build.gradle.kts
- ```
-  plugins {
-    id("io.gitlab.arturbosch.detekt") version "1.23.1"
-  }
+1. Seleccionamos Codigo/Code - Analizar Codigo/Analyze Code | Esto te generara un informe de errores, posibles mejoras, etc.
+2. Una vez nos haya generado este informe, podremos exportarlo como HTML, o visualizarlo en el mismo IDE.
 
- ```
-2. Sincronizamos el proyecto con Gradlew
-3. Generamos el archivo de configuración: ```./gradlew detektGenerateConfig```. Lo que crea un archivo detekt.yml en la raíz o dentro de /config/detekt/.
 
-![img.png](img.png)
-
-# EJECUCIÓN DEL ANALISIS
-
-- ``` ./gradlew detekt```
-
-### RESULTADOS:
-
-[Datos del Análisis](./build/reports/detekt/detekt.html)
 
 # DETECCIÓN DE 5 ERRORES
 
@@ -40,11 +25,11 @@
 - **Descripción:** Todas las implementaciones del método siempre retornan true, lo cual hace innecesario su retorno como valor dinámico.
 - **Solución sugerida:** Revisar si el valor de retorno es necesario. Si no lo es, cambiar el tipo de retorno a void.
 
-### 3. Constructor Privado No Utilizado
+### 3. Propiedad Privado No Utilizado
    
-- **Ubicación:** Enum Cobertura, constructor Cobertura(String desc).
-- **Tipo:** Dead Code / Código Inalcanzable.
-- **Descripción:** El constructor privado no es invocado en ningún lugar del código, indicando que está presente sin una función real.
+- **Ubicación:** Enum Cobertura, método getCobertura(valor: String).
+- **Tipo:** Control de flujo inapropiado / Código frágil basado en excepciones.
+- **Descripción:** El método getCobertura usaba una llamada a valueOf(valor.uppercase()) seguida de un bloque try-catch para manejar posibles errores de entrada. Esta forma de control de flujo mediante excepciones es enrevesada y poco clara. Además, se fijaba el comportamiento a los nombres exactos del enum, lo que puede fallar con entradas incorrectas.
 - **Solución sugerida:** Eliminar si no se planea utilizar, o documentar explícitamente su propósito si es para uso futuro.
 
 ### 4. Declaraciones Redundantes No Utilizadas
@@ -66,6 +51,16 @@
     - Considerar retornar un objeto de resultado (como un Result, Either, o lanzar excepciones controladas) para representar correctamente el resultado de la operación.
 
 # USO DE REFACTORIZACIÓN
+
+1. ENUM CLASS COBERTURA
+
+**ANTES**
+
+![img_1.png](img_1.png)
+
+**DESPUES**
+
+![img_2.png](img_2.png)
 
 # RESPUESTA A LAS PREGUNTAS
 

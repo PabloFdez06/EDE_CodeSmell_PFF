@@ -11,11 +11,10 @@ enum class Cobertura(val desc: String) {
 
     companion object {
         fun getCobertura(valor: String): Cobertura {
-            return try {
-                valueOf(valor.uppercase())
-            } catch (e: IllegalArgumentException) {
-                TERCEROS
-            }
+            return entries.firstOrNull { it.name.equals(valor, ignoreCase = true) }
+                ?: TERCEROS
         }
     }
 }
+
+

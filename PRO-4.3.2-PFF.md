@@ -52,20 +52,222 @@
 
 # USO DE REFACTORIZACIÓN
 
-1. ENUM CLASS COBERTURA
+1. En RepoSegurosFich, el método cargarSeguros() tiene demasiadas responsabilidades (cargar datos, limpiar lista, transformar, insertar, actualizar contadores). Esto es un code smell tipo "Long Method" y rompe el principio de responsabilidad única.
 
-**ANTES**
+**Código Sin Refactorizar:**
 
-![img_1.png](img_1.png)
+```
+    override fun cargarSeguros(mapa: Map<String, (List<String>) -> Seguro?>): Boolean {
+        val lineas = fich.leerArchivo(rutaArchivo)
 
-**DESPUES**
+        if (lineas.isNotEmpty()) {
+            seguros.clear()
+            for (linea in lineas) {
+                val datos = linea.split(";")
+                if (datos.isNotEmpty()) {
+                    val tipo = datos[0]
+                    val parametros = datos.drop(1)
+                    val seguro = mapa[tipo]?.invoke(parametros)
+                    if (seguro != null) {
+                        super.agregar(seguro)
+                    }
+                }
+            }
+            actualizarContadores(seguros)
+            return seguros.isNotEmpty()
+        }
+        return false
+    }
+```
 
-![img_2.png](img_2.png)
+**Código Refactorizado:**
+
+```
+override fun cargarSeguros(mapa: Map<String, (List<String>) -> Seguro?>): Boolean {
+    val lineas = fich.leerArchivo(rutaArchivo)
+    return cargarSegurosDesdeLineas(lineas, mapa)
+}
+
+private fun cargarSegurosDesdeLineas(lineas: List<String>, mapa: Map<String, (List<String>) -> Seguro?>): Boolean {
+    if (lineas.isNotEmpty()) {
+        seguros.clear()
+        for (linea in lineas) {
+            val seguro = parsearLinea(linea, mapa)
+            if (seguro != null) super.agregar(seguro)
+        }
+        actualizarContadores(seguros)
+        return seguros.isNotEmpty()
+    }
+    return false
+}
+
+private fun parsearLinea(linea: String, mapa: Map<String, (List<String>) -> Seguro?>): Seguro? {
+    val datos = linea.split(";")
+    if (datos.isNotEmpty()) {
+        val tipo = datos[0]
+        val parametros = datos.drop(1)
+        return mapa[tipo]?.invoke(parametros)
+    }
+    return null
+}
+
+```
+
+2. El método cambiarClave() en Usuario acepta una clave ya encriptada. Esto rompe la consistencia del modelo, porque la encriptación debería ser responsabilidad de la clase, no del exterior. También va contra el principio Tell, Don’t Ask.
+
+**Código Sin Refactorizar:**
+
+```
+    fun cambiarClave(nuevaClaveEncriptada: String) {
+        this.clave = nuevaClaveEncriptada
+    }
+```
+
+**Código Refactorizado:**
+
+```
+fun cambiarClaveNueva(nuevaClave: String) {
+    this.clave = Seguridad().encriptarClave(nuevaClave)
+}
+```
+
+3. En Ficheros.agregarLinea: El método agregarLinea() repite la lógica de verificar y abrir el archivo. Es un code smell tipo "Código Duplicado" y también viola el principio DRY.
+
+**Código Sin Refactorizar:**
+
+```
+    override fun agregarLinea(ruta: String, linea: String): Boolean {
+        if (!existeFichero(ruta)) {
+            return false
+        } else {
+            val file = File(ruta)
+            if (file.length().toInt() == 0) {
+                file.appendText(linea)
+            } else {
+                file.appendText("\n" + linea)
+            }
+            return true
+        }
+    }
+```
+
+**Código Refactorizado:**
+
+```
+override fun agregarLinea(ruta: String, linea: String): Boolean {
+    val file = obtenerArchivoSeguro(ruta) ?: return false
+    val texto = if (file.length().toInt() == 0) linea else "\n$linea"
+    file.appendText(texto)
+    return true
+}
+
+private fun obtenerArchivoSeguro(ruta: String): File? {
+    return if (existeFichero(ruta)) File(ruta) else null
+}
+
+```
+
+# PRUEBAS UNITARIAS
+
+### TEST 1: Carga de seguros (refactorización 1)
+
+```
+@Test
+fun `test cargarSeguros con datos validos`() {
+    val mockFich = mockk<IUtilFicheros>()
+    val repo = RepoSegurosFich("seguros.txt", mockFich)
+
+    val linea = "SeguroAuto;Juan;1234;1234ABC;123.0;5"
+    every { mockFich.leerArchivo(any()) } returns listOf(linea)
+
+    val mapa = mapOf("SeguroAuto" to { datos: List<String> -> SeguroAuto.crearSeguro(datos) })
+    val resultado = repo.cargarSeguros(mapa)
+
+    assertTrue(resultado)
+    assertEquals(1, repo.obtenerTodos().size)
+}
+
+```
+
+### TEST 2: Cambio de clave del usuario (refactorización 2)
+
+```
+@Test
+fun `test cambiarClaveNueva cambia y encripta clave correctamente`() {
+    val usuario = Usuario("Ana", "1234", Perfil.ADMIN)
+    val claveAnterior = usuario.clave
+
+    usuario.cambiarClaveNueva("nuevaClave123")
+    val claveNueva = usuario.clave
+
+    assertNotEquals(claveAnterior, claveNueva)
+    assertTrue(Seguridad().verificarClave("nuevaClave123", claveNueva))
+}
+
+```
+
+### TEST 3: Agregar línea a archivo vacío (refactorización 3)
+
+```
+@Test
+fun `test agregarLinea archivo vacio`() {
+    val ruta = "archivo.txt"
+    val file = mockk<File>(relaxed = true)
+    every { file.length() } returns 0
+    mockkStatic(File::class)
+    every { File(ruta) } returns file
+    val fich = Ficheros()
+
+    val resultado = fich.agregarLinea(ruta, "Línea de prueba")
+    assertTrue(resultado)
+}
+
+```
 
 # RESPUESTA A LAS PREGUNTAS
 
-[1]
+## [1] Refactorización y code smells
 
-[2]
+### 1.a ¿Qué code smell y patrones de refactorización has aplicado?
 
-[3]
+- Código duplicado → *Extraer método* (ej. en `Ficheros.agregarLinea`)
+- Método con demasiadas responsabilidades → *Extraer método* (ej. en `RepoSegurosFich.cargarSeguros`)
+- Método que siempre retorna el mismo valor → revisión y posible eliminación (ej. `IRepoUsuarios.cambiarClave`)
+- Dependencia concreta → *Inyección de dependencias* para facilitar testing (ej. `RepoSegurosFich` recibe `IUtilFicheros`)
+- Código con lógica externa para encriptación → encapsulamiento de lógica (*Tell, Don’t Ask*), en `Usuario.cambiarClaveNueva`
+
+### 1.b Patrón de refactorización cubierto por tests y su mejora
+
+**Patrón:** *Inyección de dependencias* en `RepoSegurosFich` (recibe interfaz `IUtilFicheros`).
+
+- Mejora la testabilidad y desacopla la clase del acceso directo a ficheros.
+- Permite usar mocks en tests para aislar la lógica de negocio.
+- Código relacionado:
+  - RepoSegurosFich.kt
+  - RepoSegurosFichTest.kt
+
+Los tests validan la correcta carga de seguros simulando la lectura de ficheros.
+
+---
+
+## [2] Proceso para asegurar que la refactorización no afecta código existente
+
+- Ejecutar todos los tests antes de la refactorización para confirmar funcionalidad inicial.
+- Aplicar refactorización usando herramientas automáticas del IDE (IntelliJ).
+- Volver a ejecutar todos los tests unitarios y de integración después del cambio.
+- Verificar que no hay fallos ni inconvenientes.
+- Usar mocks para aislar dependencias externas y comprobar interacciones.
+- Revisar manualmente cambios críticos si es necesario.
+
+---
+
+## [3] Funcionalidades del IDE usadas para refactorización
+
+- **Extract Method / Extract Interface:** Refactor → Extract → Interface/Method para separar responsabilidades.
+- **Rename (Shift+F6):** Renombrar variables o métodos sin romper referencias.
+- **Intention Actions (Alt+Enter):** Sugerencias para mejorar código o eliminar duplicaciones.
+- **Soporte para mocks en tests:** Integración con frameworks de mocking (ej. MockK) para pruebas unitarias aisladas.
+
+---
+
+

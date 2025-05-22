@@ -53,10 +53,11 @@ class Usuario(var nombre: String, clave: String, var perfil: Perfil) : IExportab
     /**
      * Cambia la clave del usuario a una nueva clave encriptada.
      *
-     * @param nuevaClaveEncriptada La nueva clave encriptada que se establecerá para el usuario.
+     * @param nuevaClave La nueva clave encriptada que se establecerá para el usuario.
      */
-    fun cambiarClave(nuevaClaveEncriptada: String) {
-        this.clave = nuevaClaveEncriptada
+
+    fun cambiarClave(nuevaClave: String) {
+        this.clave = Seguridad().encriptarClave(nuevaClave)
     }
 
     /**

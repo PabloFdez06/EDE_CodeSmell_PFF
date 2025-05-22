@@ -2,4 +2,5 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 rootProject.name = "EDE_CodeSmell_PFF"
-
+include("src:main:tests")
+findProject(":src:main:tests")?.name = "tests"
